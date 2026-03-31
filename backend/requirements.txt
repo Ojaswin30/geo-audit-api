@@ -5,3 +5,8 @@ beautifulsoup4
 pydantic
 python-dotenv
 openai
+transformers
+torch
+accelerate
+bitsandbytes
+sentencepiece

@@ -1,27 +1,19 @@
 import requests
 from bs4 import BeautifulSoup
-from typing import Optional
+from urllib.parse import urljoin
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; GEOAuditBot/1.0)"
 }
 
 def scrape_page(url: str) -> dict:
-    """
-    Scrape a public webpage and extract:
-    - title
-    - meta description
-    - all h1 and h2 headings
-    - first image URL found
-    Returns a dict. Raises ValueError on failure.
-    """
     try:
         response = requests.get(url, headers=HEADERS, timeout=10)
         response.raise_for_status()
     except requests.exceptions.Timeout:
-        raise ValueError("Request timed out. The page took too long to respond.")
+        raise ValueError("Request timed out.")
     except requests.exceptions.ConnectionError:
-        raise ValueError("Could not connect to the URL. Check if it's a valid public page.")
+        raise ValueError("Connection failed.")
     except requests.exceptions.HTTPError as e:
         raise ValueError(f"HTTP error: {e.response.status_code}")
 
@@ -32,27 +24,21 @@ def scrape_page(url: str) -> dict:
     meta_tag = soup.find("meta", attrs={"name": "description"})
     meta_description = meta_tag["content"].strip() if meta_tag else None
 
-    headings = []
-    for tag in soup.find_all(["h1", "h2"]):
-        text = tag.get_text(strip=True)
-        if text:
-            headings.append(text)
+    headings = [
+        tag.get_text(strip=True)
+        for tag in soup.find_all(["h1", "h2"])
+        if tag.get_text(strip=True)
+    ][:10]
 
     image_url = None
-    img_tag = soup.find("img", src=True)
-    if img_tag:
-        src = img_tag["src"]
-        # handle relative URLs
-        if src.startswith("http"):
-            image_url = src
-        else:
-            from urllib.parse import urljoin
-            image_url = urljoin(url, src)
+    img = soup.find("img", src=True)
+    if img:
+        image_url = urljoin(url, img["src"])
 
     return {
         "title": title,
         "meta_description": meta_description,
-        "headings": headings[:10],   # cap at 10 so response stays clean
+        "headings": headings,
         "image_url": image_url,
-        "raw_text": soup.get_text(separator=" ", strip=True)[:3000]  # for LLM context
+        "raw_text": soup.get_text(separator=" ", strip=True)[:3000]
     }

@@ -5,13 +5,13 @@ from schema_recommender import get_schema_recommendation
 
 app = FastAPI(
     title="GEO Audit API",
-    description="Audits a webpage for AI search visibility and recommends structured JSON-LD schema.",
+    description="Audits a webpage and generates JSON-LD schema.",
     version="1.0.0"
 )
 
 @app.get("/")
 def root():
-    return {"message": "GEO Audit API is running. Use POST /audit to analyze a page."}
+    return {"message": "GEO Audit API running"}
 
 @app.post("/audit", response_model=AuditResponse)
 def audit_page(request: AuditRequest):

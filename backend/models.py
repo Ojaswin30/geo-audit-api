@@ -10,7 +10,7 @@ class AuditResponse(BaseModel):
     meta_description: Optional[str]
     headings: List[str]
     image_url: Optional[str]
-    schema_type: str             # e.g. "Article", "Product", "Organization"
-    json_ld: dict                # the actual recommended JSON-LD block
-    llm_used: bool               # transparency flag
+    schema_type: str
+    json_ld: dict
+    llm_used: bool
     error: Optional[str] = None

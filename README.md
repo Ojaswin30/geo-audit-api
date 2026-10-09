@@ -88,7 +88,7 @@ Get a free Gemini API key at [aistudio.google.com](https://aistudio.google.com).
 > LLM_ENDPOINT=http://localhost:8001/generate
 > ```
 
-### 5. Run the server
+### 5. Run the backend server
 
 ```bash
 uvicorn main:app --reload
@@ -96,6 +96,29 @@ uvicorn main:app --reload
 
 API is live at `http://localhost:8000`  
 Auto-generated docs at `http://localhost:8000/docs`
+
+---
+
+## Frontend Setup (Next.js + Tailwind)
+
+### 1. Run locally
+
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+
+Frontend is live at `http://localhost:3000`
+
+### 2. Deploy to Vercel
+
+1. Push this repository to GitHub.
+2. Go to [Vercel Dashboard](https://vercel.com/new) and import the repository.
+3. In **Root Directory**, select `frontend`.
+4. In **Environment Variables**, add:
+   - `NEXT_PUBLIC_API_URL`: URL of your deployed FastAPI backend (e.g. on Render, Railway, Fly.io) or leave default for local testing.
+5. Click **Deploy**.
 
 ---
 

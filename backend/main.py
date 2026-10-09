@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from models import AuditRequest, AuditResponse
 from scraper import scrape_page
 from schema_recommender import get_schema_recommendation
@@ -7,6 +8,14 @@ app = FastAPI(
     title="GEO Audit API",
     description="Audits a webpage and generates JSON-LD schema.",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/")

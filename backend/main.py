@@ -1,13 +1,22 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from models import AuditRequest, AuditResponse
 from scraper import scrape_page
 from schema_recommender import get_schema_recommendation
+from model import load_local_model
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Preload model into GPU memory on server boot so it stays hot in VRAM
+    load_local_model()
+    yield
 
 app = FastAPI(
     title="GEO Audit API",
     description="Audits a webpage and generates JSON-LD schema.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(

@@ -23,7 +23,7 @@ if GEMINI_API_KEY:
 tokenizer = None
 model = None
 
-def _load_local_model():
+def load_local_model():
     global tokenizer, model
     if model is None:
         try:
@@ -36,15 +36,47 @@ def _load_local_model():
 
         MODEL_ID = os.getenv("LOCAL_MODEL_ID", "TinyLlama/TinyLlama-1.1B-Chat-v1.0")
         cache_dir = os.getenv("HF_HOME", None)
-        print(f"Loading local model {MODEL_ID}...")
+        is_cuda = torch.cuda.is_available()
+
         tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, cache_dir=cache_dir)
-        model = AutoModelForCausalLM.from_pretrained(
-            MODEL_ID,
-            cache_dir=cache_dir,
-            device_map="auto" if torch.cuda.is_available() else "cpu",
-            torch_dtype=torch.float32
-        )
-        print("Local model loaded successfully.")
+
+        if is_cuda:
+            try:
+                from transformers import BitsAndBytesConfig
+                print(f"Loading local model {MODEL_ID} in 4-bit precision on GPU (VRAM optimized)...")
+                bnb_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.float16,
+                    bnb_4bit_quant_type="nf4"
+                )
+                model = AutoModelForCausalLM.from_pretrained(
+                    MODEL_ID,
+                    cache_dir=cache_dir,
+                    device_map="cuda",
+                    quantization_config=bnb_config
+                )
+            except Exception as q_err:
+                print(f"4-bit loading fallback to float16: {q_err}")
+                model = AutoModelForCausalLM.from_pretrained(
+                    MODEL_ID,
+                    cache_dir=cache_dir,
+                    device_map="cuda",
+                    dtype=torch.float16
+                )
+            vram_gb = torch.cuda.memory_allocated() / (1024 ** 3)
+            print(f"Local model loaded successfully in GPU VRAM ({torch.cuda.get_device_name(0)}). VRAM used: {vram_gb:.2f} GB")
+        else:
+            print(f"Loading local model {MODEL_ID} on CPU...")
+            model = AutoModelForCausalLM.from_pretrained(
+                MODEL_ID,
+                cache_dir=cache_dir,
+                device_map="cpu",
+                dtype=torch.float32
+            )
+            print("Local model loaded successfully in CPU RAM.")
+
+def _load_local_model():
+    load_local_model()
 
 def generate(prompt: str) -> str:
     # Option A: Gemini API
@@ -81,13 +113,23 @@ def generate(prompt: str) -> str:
     except Exception:
         formatted_prompt = prompt
 
-    inputs = tokenizer(formatted_prompt, return_tensors="pt")
+    inputs = tokenizer(formatted_prompt, return_tensors="pt", max_length=1500, truncation=True)
     input_ids = inputs["input_ids"].to(model.device)
+    attention_mask = inputs.get("attention_mask")
+    if attention_mask is not None:
+        attention_mask = attention_mask.to(model.device)
 
-    with torch.no_grad():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    if hasattr(model, "generation_config"):
+        model.generation_config.max_length = None
+
+    with torch.inference_mode():
         outputs = model.generate(
             input_ids=input_ids,
-            max_new_tokens=400,
+            attention_mask=attention_mask,
+            max_new_tokens=450,
             do_sample=True,
             temperature=0.3,
             top_p=0.9,

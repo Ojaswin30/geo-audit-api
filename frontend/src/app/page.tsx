@@ -19,15 +19,22 @@ import {
   Zap,
   Info,
   ChevronRight,
+  ChevronDown,
   ShieldCheck,
   CheckCircle2
 } from "lucide-react";
+
+interface HeadingDetail {
+  tag?: string;
+  text: string;
+  content?: string;
+}
 
 interface AuditResponse {
   url: string;
   title: string | null;
   meta_description: string | null;
-  headings: string[];
+  headings: (string | HeadingDetail)[];
   image_url: string | null;
   schema_type: string;
   json_ld: Record<string, unknown>;
@@ -56,6 +63,11 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"schema" | "extracted" | "geo">("schema");
   const [showScaleModal, setShowScaleModal] = useState(false);
   const [showDecisionsModal, setShowDecisionsModal] = useState(false);
+  const [expandedHeadings, setExpandedHeadings] = useState<Record<number, boolean>>({});
+
+  const toggleHeading = (idx: number) => {
+    setExpandedHeadings((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  };
 
   const runAudit = async (targetUrl?: string) => {
     const auditUrl = targetUrl || url;
@@ -438,7 +450,7 @@ export default function Home() {
                       </span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Inject this script tag into the HTML head tag of your webpage to enable generative search citations.
+                      Standard Schema.org @graph markup for Knowledge Graph indexing & entity disambiguation.
                     </p>
                   </div>
 
@@ -541,25 +553,77 @@ export default function Home() {
                 {/* Headings Structure */}
                 <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-white">Extracted Headings</h3>
-                    <span className="text-xs text-slate-400 font-mono">
+                    <div>
+                      <h3 className="text-base font-semibold text-white">Extracted Headings</h3>
+                      <p className="text-[11px] text-slate-400">Click any heading to expand and inspect extracted content</p>
+                    </div>
+                    <span className="text-xs text-indigo-400 font-mono bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20">
                       {result.headings?.length || 0} Headings
                     </span>
                   </div>
 
-                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
                     {result.headings && result.headings.length > 0 ? (
-                      result.headings.map((h, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2.5 bg-slate-950 rounded-xl border border-slate-800/80 text-xs text-slate-300 flex items-start space-x-2"
-                        >
-                          <span className="text-[10px] font-mono text-indigo-400 font-bold mt-0.5">
-                            #{idx + 1}
-                          </span>
-                          <span className="flex-1">{h}</span>
-                        </div>
-                      ))
+                      result.headings.map((h, idx) => {
+                        const isObj = typeof h === "object" && h !== null;
+                        const headingText = isObj ? h.text : String(h);
+                        const tag = isObj && h.tag ? h.tag : "H";
+                        const content = isObj && h.content ? h.content : null;
+                        const isExpanded = !!expandedHeadings[idx];
+
+                        return (
+                          <div
+                            key={idx}
+                            className="bg-slate-950 rounded-xl border border-slate-800/80 overflow-hidden transition-all duration-200"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => toggleHeading(idx)}
+                              className="w-full p-3 text-left flex items-center justify-between hover:bg-slate-900/60 transition-colors group cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2.5 flex-1 min-w-0 pr-2">
+                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
+                                  #{idx + 1} {tag}
+                                </span>
+                                <span className="text-xs font-medium text-slate-200 truncate group-hover:text-white">
+                                  {headingText}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2 shrink-0">
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  {isExpanded ? "Collapse" : "View content"}
+                                </span>
+                                <ChevronDown
+                                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                                    isExpanded ? "rotate-180 text-indigo-400" : ""
+                                  }`}
+                                />
+                              </div>
+                            </button>
+
+                            {isExpanded && (
+                              <div className="px-3.5 pb-3 pt-1 border-t border-slate-800/60 bg-slate-900/40 space-y-2 text-xs">
+                                <div>
+                                  <span className="text-[10px] uppercase font-mono text-slate-500 font-semibold block mb-0.5">
+                                    Heading Title
+                                  </span>
+                                  <p className="text-slate-200 font-mono bg-slate-950/70 p-2 rounded-lg border border-slate-800/50 break-words text-[11px]">
+                                    {headingText}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] uppercase font-mono text-slate-500 font-semibold block mb-0.5">
+                                    Extracted Section Content
+                                  </span>
+                                  <p className="text-slate-300 leading-relaxed bg-slate-950/70 p-2 rounded-lg border border-slate-800/50 break-words text-[11px]">
+                                    {content || "No direct text block detected immediately under this heading."}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className="p-4 bg-slate-950 rounded-xl border border-slate-800/80 text-xs text-slate-500 italic">
                         No H1-H3 headings detected on this page.
@@ -575,10 +639,10 @@ export default function Home() {
               <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-6">
                 <div>
                   <h3 className="text-lg font-bold text-white mb-2">
-                    Why Generative Engine Optimization (GEO) Matters
+                    The Reality of Generative Engine Optimization (GEO)
                   </h3>
                   <p className="text-sm text-slate-300 leading-relaxed">
-                    Unlike traditional search engines that index keywords, generative search engines (ChatGPT Search, Perplexity, Google AI Overviews) consume structured knowledge graphs. High-fidelity JSON-LD schema ensures AI agents cite your brand with high confidence and authority.
+                    JSON-LD schema provides foundational machine-readable hygiene for search engines like Google and Bing to map your entity into knowledge graphs. However, live AI answer engines (ChatGPT Search, Perplexity, Claude) strip scripts at query time and synthesize visible DOM content. Effective GEO requires both technical schema and extractable on-page architecture.
                   </p>
                 </div>
 
@@ -587,9 +651,9 @@ export default function Home() {
                     <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
                       1
                     </div>
-                    <p className="font-semibold text-white">Entity Disambiguation</p>
+                    <p className="font-semibold text-white">Knowledge Graph Hygiene</p>
                     <p className="text-slate-400">
-                      The generated `sameAs` and social graph links tell AI models exactly which real-world entity your business represents.
+                      Standard @graph markup with @id and sameAs links helps asynchronous crawlers reconcile your entity against Google Knowledge Vault and avoid identity confusion.
                     </p>
                   </div>
 
@@ -597,9 +661,9 @@ export default function Home() {
                     <div className="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
                       2
                     </div>
-                    <p className="font-semibold text-white">Fact Verification</p>
+                    <p className="font-semibold text-white">Visible Content Extractability</p>
                     <p className="text-slate-400">
-                      Explicit pricing, founder, and publishing metadata prevents LLM hallucinations when answering user inquiries.
+                      At live query time, LLMs read the visible DOM. Clear H1-H3 hierarchy, bulleted lists, and concise 2-sentence direct answers are what AI models actually retrieve and quote.
                     </p>
                   </div>
 
@@ -607,9 +671,9 @@ export default function Home() {
                     <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
                       3
                     </div>
-                    <p className="font-semibold text-white">Direct AI Citations</p>
+                    <p className="font-semibold text-white">Earned Brand Authority</p>
                     <p className="text-slate-400">
-                      Proper schema tags provide verified anchor points for AI synthesizers to include source citations and links.
+                      Empirical studies confirm that third-party co-occurrences, credible press mentions, and external citations drive over 80% of generative AI citation share.
                     </p>
                   </div>
                 </div>

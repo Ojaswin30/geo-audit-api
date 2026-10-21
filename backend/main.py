@@ -1,16 +1,16 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from models import AuditRequest, AuditResponse
 from scraper import scrape_page
 from schema_recommender import get_schema_recommendation
-from model import load_local_model
+from model import is_gemini_configured, test_gemini
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Only preload local HuggingFace model if explicitly requested via env variable
     # For cloud environments like Render (512MB RAM), Gemini API is used to conserve memory
-    import os
     if os.getenv("ENABLE_LOCAL_MODEL", "false").lower() in ("true", "1"):
         try:
             from model import load_local_model
@@ -36,7 +36,26 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    return {"message": "GEO Audit API running"}
+    return {
+        "message": "GEO Audit API running",
+        "gemini_active": is_gemini_configured(),
+        "health_check": "/health",
+        "test_gemini": "/test-gemini",
+        "docs": "/docs"
+    }
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "gemini_configured": is_gemini_configured(),
+        "model": "gemini-2.0-flash" if is_gemini_configured() else "rule-based-fallback"
+    }
+
+@app.get("/test-gemini")
+def verify_gemini():
+    """Live diagnostic endpoint: sends a test ping to Gemini API to confirm the API key works."""
+    return test_gemini()
 
 @app.post("/audit", response_model=AuditResponse)
 def audit_page(request: AuditRequest):

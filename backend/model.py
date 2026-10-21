@@ -28,6 +28,30 @@ def set_gemini_api_key(api_key: str) -> bool:
 def is_gemini_configured() -> bool:
     return gemini_client is not None
 
+def test_gemini() -> dict:
+    if not gemini_client:
+        return {
+            "configured": False,
+            "working": False,
+            "error": "GEMINI_API_KEY environment variable is not set."
+        }
+    try:
+        res = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents="Say 'OK' if you can read this."
+        )
+        return {
+            "configured": True,
+            "working": True,
+            "response": res.text.strip() if res.text else "No response text"
+        }
+    except Exception as e:
+        return {
+            "configured": True,
+            "working": False,
+            "error": str(e)
+        }
+
 if GEMINI_API_KEY:
     set_gemini_api_key(GEMINI_API_KEY)
 

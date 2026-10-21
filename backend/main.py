@@ -8,8 +8,15 @@ from model import load_local_model
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Preload model into GPU memory on server boot so it stays hot in VRAM
-    load_local_model()
+    # Only preload local HuggingFace model if explicitly requested via env variable
+    # For cloud environments like Render (512MB RAM), Gemini API is used to conserve memory
+    import os
+    if os.getenv("ENABLE_LOCAL_MODEL", "false").lower() in ("true", "1"):
+        try:
+            from model import load_local_model
+            load_local_model()
+        except Exception as e:
+            print(f"Notice: Local model preload skipped ({e}). Fallback active.")
     yield
 
 app = FastAPI(

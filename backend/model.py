@@ -11,13 +11,25 @@ except ImportError:
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 gemini_client = None
 
-if GEMINI_API_KEY:
+def set_gemini_api_key(api_key: str) -> bool:
+    global GEMINI_API_KEY, gemini_client
+    if not api_key or not api_key.strip():
+        return False
     try:
         from google import genai
+        GEMINI_API_KEY = api_key.strip()
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        print("Gemini API client initialized successfully.")
+        os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
+        return True
     except Exception as e:
-        print(f"Warning: Could not initialize Gemini client ({e}).")
+        print(f"Failed to set Gemini API key: {e}")
+        return False
+
+def is_gemini_configured() -> bool:
+    return gemini_client is not None
+
+if GEMINI_API_KEY:
+    set_gemini_api_key(GEMINI_API_KEY)
 
 # 2. Local HuggingFace model (Lazy loaded only when needed)
 tokenizer = None

@@ -66,12 +66,21 @@ def scrape_page(url: str) -> dict:
         if len(headings) >= 15:
             break
 
+    # Image extraction: Prioritize OpenGraph and Twitter images, then fallback to first <img>
     image_url = None
-    img = soup.find("img", src=True)
-    if img:
-        image_url = urljoin(url, img["src"])
+    og_img = soup.find("meta", property=["og:image", "og:image:url"]) or soup.find("meta", attrs={"name": "og:image"})
+    twitter_img = soup.find("meta", attrs={"name": "twitter:image"}) or soup.find("meta", property="twitter:image")
+    
+    if og_img and og_img.get("content"):
+        image_url = urljoin(url, og_img["content"].strip())
+    elif twitter_img and twitter_img.get("content"):
+        image_url = urljoin(url, twitter_img["content"].strip())
+    else:
+        img = soup.find("img", src=True)
+        if img:
+            image_url = urljoin(url, img["src"])
 
-    valid_social_patterns = ["linkedin.com/in/", "twitter.com/", "x.com/", "youtube.com/@", "kaggle.com/"]
+    valid_social_patterns = ["linkedin.com/in/", "twitter.com/", "x.com/", "youtube.com/@", "kaggle.com/", "github.com/"]
     social_links = []
     seen = set()
     for a in soup.find_all("a", href=True):
@@ -81,6 +90,15 @@ def scrape_page(url: str) -> dict:
             if cleaned not in seen:
                 seen.add(cleaned)
                 social_links.append(cleaned)
+
+    # Detect client-side rendered Single Page Application (SPA)
+    is_spa = bool(soup.find(id=["root", "__next", "app"]) and not headings)
+    if is_spa and not headings:
+        headings.append({
+            "tag": "SPA",
+            "text": "Client-Side Rendered (React / Vite SPA)",
+            "content": "Page content is rendered in-browser using JavaScript (<div id='root'>). Core metadata (title, description, and OpenGraph images) was extracted from HTML head."
+        })
 
     return {
         "title": title,

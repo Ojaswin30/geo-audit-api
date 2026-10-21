@@ -60,7 +60,11 @@ def detect_schema_type(scraped: dict) -> str:
         headings_str
     ]).lower()
 
-    if any(w in text for w in ["software engineer", "developer", "programmer", "profile", "portfolio", "bio", "resume", "github"]):
+    if any(w in text for w in [
+        "software engineer", "data engineer", "ai engineer", "developer", "programmer",
+        "engineer", "scientist", "researcher", "consultant", "freelancer", "creator",
+        "profile", "portfolio", "bio", "resume", "cv", "personal website", "github.io"
+    ]):
         return "Person"
     if any(w in text for w in ["product", "buy", "price", "shop", "cart", "pricing"]):
         return "Product"
@@ -72,10 +76,19 @@ def detect_schema_type(scraped: dict) -> str:
     return "Organization"
 
 
+def _extract_clean_name(title: str) -> str:
+    if not title:
+        return "Unknown"
+    # Split on bullet, em-dash, en-dash, hyphen, and pipe
+    for sep in ["·", "—", "–", "|", "-"]:
+        if sep in title:
+            title = title.split(sep)[0]
+    return title.strip() or "Unknown"
+
+
 def generate_json_ld_local(url: str, scraped: dict, schema_type: str) -> dict:
     social_links = scraped.get("social_links") or [url]
-    title = scraped.get('title') or ''
-    clean_name = title.split("·")[0].split("-")[0].strip()
+    clean_name = _extract_clean_name(scraped.get("title") or "")
 
     prompt = f"""Generate a valid schema.org JSON-LD object of type "{schema_type}".
 Page URL: {url}
@@ -215,8 +228,7 @@ def get_schema_recommendation(url: str, scraped: dict):
         print(traceback.format_exc())
 
         social_links = scraped.get("social_links") or [url]
-        title = scraped.get("title") or "Unknown"
-        clean_name = title.split("·")[0].split("-")[0].split("|")[0].strip()
+        clean_name = _extract_clean_name(scraped.get("title") or "Unknown")
 
         fallback_entity = {
             "@type": schema_type,

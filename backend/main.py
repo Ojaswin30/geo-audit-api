@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import AuditRequest, AuditResponse
 from scraper import scrape_page
 from schema_recommender import get_schema_recommendation
-from model import is_gemini_configured, test_gemini
+from model import is_gemini_configured, test_gemini, generate
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -41,6 +41,7 @@ def root():
         "gemini_active": is_gemini_configured(),
         "health_check": "/health",
         "test_gemini": "/test-gemini",
+        "debug_llm": "/debug-llm",
         "docs": "/docs"
     }
 
@@ -49,13 +50,35 @@ def health_check():
     return {
         "status": "healthy",
         "gemini_configured": is_gemini_configured(),
-        "model": "gemini-2.0-flash" if is_gemini_configured() else "rule-based-fallback"
+        "model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash") if is_gemini_configured() else "rule-based-fallback"
     }
 
 @app.get("/test-gemini")
 def verify_gemini():
     """Live diagnostic endpoint: sends a test ping to Gemini API to confirm the API key works."""
     return test_gemini()
+
+@app.get("/debug-llm")
+def debug_llm(url: str = "https://ojaswin30.github.io/"):
+    """Runs a live test audit and outputs the exact LLM raw output and any error detail."""
+    import traceback
+    try:
+        scraped = scrape_page(url)
+        graph_ld, schema_type, llm_used, error_msg = get_schema_recommendation(url, scraped)
+        return {
+            "success": True,
+            "url": url,
+            "schema_type": schema_type,
+            "llm_used": llm_used,
+            "error_detail": error_msg,
+            "entity_generated": graph_ld["@graph"][-1]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
 
 @app.post("/audit", response_model=AuditResponse)
 def audit_page(request: AuditRequest):
@@ -66,7 +89,7 @@ def audit_page(request: AuditRequest):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    json_ld, schema_type, llm_used = get_schema_recommendation(url, scraped)
+    json_ld, schema_type, llm_used, error_detail = get_schema_recommendation(url, scraped)
 
     return AuditResponse(
         url=url,
@@ -76,5 +99,6 @@ def audit_page(request: AuditRequest):
         image_url=scraped["image_url"],
         schema_type=schema_type,
         json_ld=json_ld,
-        llm_used=llm_used
+        llm_used=llm_used,
+        error=error_detail
     )

@@ -134,16 +134,33 @@ def generate(prompt: str) -> str:
             "gemini-2.5-flash",
             "gemini-1.5-flash"
         ]
+        last_gemini_error = None
         for m_name in models_to_try:
+            # 1. Try with explicit JSON response format
             try:
                 response = gemini_client.models.generate_content(
                     model=m_name,
-                    contents=prompt
+                    contents=prompt,
+                    config={"response_mime_type": "application/json"}
                 )
                 if response.text:
                     return response.text
-            except Exception as e:
-                print(f"Gemini API generation failed with model {m_name}: {e}. Trying fallback...")
+            except Exception as e1:
+                last_gemini_error = str(e1)
+                # 2. Try standard generation without config
+                try:
+                    response = gemini_client.models.generate_content(
+                        model=m_name,
+                        contents=prompt
+                    )
+                    if response.text:
+                        return response.text
+                except Exception as e2:
+                    last_gemini_error = str(e2)
+                    print(f"Gemini API generation failed with model {m_name}: {e2}. Trying next...")
+
+        # If Gemini client exists but all calls failed, raise the error so caller knows
+        raise RuntimeError(f"Gemini API calls failed on all models. Last error: {last_gemini_error}")
 
     # Option B: Local HuggingFace Transformer
     _load_local_model()

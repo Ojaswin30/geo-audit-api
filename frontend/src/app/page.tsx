@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Sparkles,
@@ -64,6 +64,19 @@ export default function Home() {
   const [showScaleModal, setShowScaleModal] = useState(false);
   const [showDecisionsModal, setShowDecisionsModal] = useState(false);
   const [expandedHeadings, setExpandedHeadings] = useState<Record<number, boolean>>({});
+
+  // Silent background wake-up ping to Render backend the instant Vercel loads
+  useEffect(() => {
+    if (!apiUrl) return;
+    try {
+      const cleanUrl = apiUrl.replace(/\/+$/, "");
+      fetch(`${cleanUrl}/health`).catch(() => {
+        // Silent catch for background spin-up
+      });
+    } catch {
+      // Ignore background errors
+    }
+  }, [apiUrl]);
 
   const toggleHeading = (idx: number) => {
     setExpandedHeadings((prev) => ({ ...prev, [idx]: !prev[idx] }));

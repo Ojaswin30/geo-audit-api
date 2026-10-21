@@ -355,7 +355,7 @@ export default function Home() {
                     {result.llm_used ? (
                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center space-x-1.5">
                         <Bot className="w-3 h-3" />
-                        <span>AI Synthesized (Gemini 2.0)</span>
+                        <span>AI Synthesized (Gemini Flash)</span>
                       </span>
                     ) : (
                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center space-x-1.5">
@@ -805,7 +805,7 @@ export default function Home() {
               <div className="p-3 bg-slate-950 rounded-lg border border-slate-800">
                 <p className="font-semibold text-white mb-0.5">1. Hybrid Architecture (Deterministic + LLM)</p>
                 <p className="text-slate-400 text-[11px]">
-                  Schema classification (Article/Product/Organization) uses fast keyword heuristics (free, sub-millisecond). Semantic JSON-LD field generation uses Gemini 2.0 Flash to synthesize complex metadata (`founder`, `sameAs`, `offers`).
+                  Schema classification (Article/Product/Organization) uses fast keyword heuristics (free, sub-millisecond). Semantic JSON-LD field generation uses Gemini Flash to synthesize complex metadata (`founder`, `sameAs`, `offers`).
                 </p>
               </div>
 

@@ -35,22 +35,34 @@ def test_gemini() -> dict:
             "working": False,
             "error": "GEMINI_API_KEY environment variable is not set."
         }
-    try:
-        res = gemini_client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents="Say 'OK' if you can read this."
-        )
-        return {
-            "configured": True,
-            "working": True,
-            "response": res.text.strip() if res.text else "No response text"
-        }
-    except Exception as e:
-        return {
-            "configured": True,
-            "working": False,
-            "error": str(e)
-        }
+    
+    models_to_try = [
+        os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+        "gemini-2.5-flash",
+        "gemini-1.5-flash"
+    ]
+    last_error = None
+    for m_name in models_to_try:
+        try:
+            res = gemini_client.models.generate_content(
+                model=m_name,
+                contents="Say 'OK' if you can read this."
+            )
+            return {
+                "configured": True,
+                "working": True,
+                "model": m_name,
+                "response": res.text.strip() if res.text else "OK"
+            }
+        except Exception as e:
+            last_error = str(e)
+            print(f"Test with {m_name} failed: {e}")
+
+    return {
+        "configured": True,
+        "working": False,
+        "error": last_error
+    }
 
 if GEMINI_API_KEY:
     set_gemini_api_key(GEMINI_API_KEY)
@@ -117,15 +129,21 @@ def _load_local_model():
 def generate(prompt: str) -> str:
     # Option A: Gemini API
     if gemini_client:
-        try:
-            response = gemini_client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
-            if response.text:
-                return response.text
-        except Exception as e:
-            print(f"Gemini API generation failed: {e}. Falling back to local model...")
+        models_to_try = [
+            os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+            "gemini-2.5-flash",
+            "gemini-1.5-flash"
+        ]
+        for m_name in models_to_try:
+            try:
+                response = gemini_client.models.generate_content(
+                    model=m_name,
+                    contents=prompt
+                )
+                if response.text:
+                    return response.text
+            except Exception as e:
+                print(f"Gemini API generation failed with model {m_name}: {e}. Trying fallback...")
 
     # Option B: Local HuggingFace Transformer
     _load_local_model()
